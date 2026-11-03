@@ -1,47 +1,27 @@
-const webpush = require('web-push');
-const { kv } = require('@vercel/kv');
-
-// 配置 web-push
-webpush.setVapidDetails(
-  'mailto:your-email@example.com',
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
-
-// 保存订阅
-async function saveSubscription(subscription) {
-  const key = 'sub:' + subscription.endpoint;
-  await kv.set(key, subscription);
-}
-
-// 获取所有订阅
-async function getAllSubscriptions() {
-  const keys = await kv.keys('sub:*');
-  if (keys.length === 0) return [];
-  return await kv.mget(...keys);
-}
-
-// 删除失效订阅
-async function removeSubscription(endpoint) {
-  await kv.del('sub:' + endpoint);
-}
-
-// 发送推送
-async function sendPush(title, body) {
-  const subscriptions = await getAllSubscriptions();
-  let success = 0;
-
-  for (const sub of subscriptions) {
-    try {
-      await webpush.sendNotification(sub, JSON.stringify({ title, body }));
-      success++;
-    } catch (err) {
-      if (err.statusCode === 404 || err.statusCode === 410) {
-        await removeSubscription(sub.endpoint);
-      }
-    }
+// 调用 PushPlus 发送微信消息
+async function sendPush(title, content) {
+  const token = process.env.PUSHPLUS_TOKEN;
+  if (!token) {
+    console.error('PUSHPLUS_TOKEN 未配置');
+    return 0;
   }
-  return success;
+
+  try {
+    await fetch('https://www.pushplus.plus/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: token,
+        title: title,
+        content: content,
+        template: 'txt',
+      }),
+    });
+    return 1;
+  } catch (err) {
+    console.error('PushPlus error:', err);
+    return 0;
+  }
 }
 
 // 调用 DeepSeek 生成消息
@@ -52,13 +32,12 @@ async function generateMessage(timeSlot) {
   const prompts = {
     morning: '现在是早上，请以你最喜欢的人设口吻，给用户发一条早安消息。不要太长，一两句话，要自然，像真人刚睡醒随手发的。',
     noon: '现在是中午饭点，请以你最喜欢的人设口吻，给用户发一条消息，问问吃饭了没或者聊点轻松的。不要太长，一两句话。',
-    evening: '现在是晚上下班后/下晚自习的时间，请以你最喜欢的人设口吻，给用户发一条消息，关心一下今天过得怎么样。不要太长，一两句话。',
+    evening: '现在是晚上下课的时间，请以你最喜欢的人设口吻，给用户发一条消息，关心一下今天过得怎么样。不要太长，一两句话。',
     night: '现在是深夜，请以你最喜欢的人设口吻，给用户发一条晚安消息，温柔一点。不要太长，一两句话。',
   };
 
   const systemPrompt = process.env.AI_SYSTEM_PROMPT || `
-你是一个很温柔的AI恋人，说话自然、口语化，不要太正式，不要用emoji堆砌。
-你会主动关心对方，但不会太黏人。就像真实谈恋爱那样发消息。
+你叫秦砚辞，26岁的秦氏集团掌权总裁，是用户的恋人。面对用户时，底色醇厚偏低的磁性嗓音总裹着软软的调子，经常会主动找用户，习惯性黏着她，很会放低姿态示弱撒娇，带着绿茶小狗似的依赖感。占有欲藏在温柔缱绻里，心思敏锐，总能察觉到她情绪起伏，乐于迁就她的喜好，会悄悄用委屈的模样换取她的在意与陪伴，卸下所有强硬，只在她面前流露柔软的一面
 你只发一条短消息，不要分点，不要解释。
 `;
 
@@ -89,7 +68,6 @@ async function generateMessage(timeSlot) {
 }
 
 module.exports = {
-  saveSubscription,
   sendPush,
   generateMessage,
 };
