@@ -1,0 +1,9 @@
+{
+  "name": "ai-push-demo",
+  "version": "1.0.0",
+  "description": "AI主动发消息 + 弹窗推送 Demo（接 DeepSeek）",
+  "dependencies": {
+    "web-push": "^3.6.6",
+    "@vercel/kv": "^1.0.1"
+  }
+}
