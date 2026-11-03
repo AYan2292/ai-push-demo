@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>我的AI小伙伴</title>
-  <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#ff6b9d">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -39,139 +38,76 @@
       margin-bottom: 30px;
     }
     .status {
-      background: #f5f5f5;
+      background: #f0fff4;
+      border: 1px solid #9ae6b4;
       border-radius: 12px;
       padding: 15px;
       margin-bottom: 20px;
       font-size: 14px;
-      color: #666;
+      color: #22543d;
       text-align: center;
     }
-    .status.on {
-      background: #e8f5e9;
-      color: #2e7d32;
-    }
-    .btn {
+    button {
       width: 100%;
-      padding: 14px;
+      padding: 15px;
       border: none;
       border-radius: 12px;
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      margin-bottom: 10px;
-      transition: transform 0.1s;
+      transition: all 0.2s;
     }
-    .btn:active { transform: scale(0.98); }
-    .btn-primary {
-      background: linear-gradient(135deg, #ff6b9d, #ffa07a);
+    .test-btn {
+      background: linear-gradient(135deg, #ff6b9d 0%, #c44569 100%);
       color: white;
+      margin-top: 10px;
     }
-    .btn-secondary {
-      background: #f0f0f0;
-      color: #666;
+    .test-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(255, 107, 157, 0.4);
     }
     .tips {
-      margin-top: 20px;
-      font-size: 12px;
-      color: #aaa;
+      margin-top: 30px;
+      padding: 15px;
+      background: #f7fafc;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #718096;
       line-height: 1.6;
     }
-    .tips ol { padding-left: 20px; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>💌 我的AI小伙伴</h1>
-    <p class="subtitle">开启推送，让ta主动来找你</p>
+    <p class="subtitle">每天早上8点，ta会主动发消息给你</p>
 
-    <div id="status" class="status">🔘 推送未开启</div>
+    <div class="status">
+      ✅ 服务已开启，微信推送已配置
+    </div>
 
-    <button id="subscribeBtn" class="btn btn-primary">开启消息推送</button>
-    <button id="testBtn" class="btn btn-secondary">发一条测试消息</button>
+    <button class="test-btn" onclick="testPush()">发送测试消息</button>
 
     <div class="tips">
-      <strong>使用说明：</strong>
-      <ol>
-        <li>点击上方按钮开启推送权限</li>
-        <li>用浏览器菜单选择「添加到主屏幕」</li>
-        <li>之后就算关掉网页，ta也会主动发消息给你</li>
-      </ol>
+      📱 消息会直接推送到你的微信公众号「PushPlus」<br>
+      ⏰ 每天早上8点自动发送一条AI生成的消息<br>
+      💬 可以修改系统提示词，改变AI的人设和说话风格
     </div>
   </div>
 
   <script>
-    // VAPID 公钥（公开的，直接写在这里）
-    const VAPID_PUBLIC_KEY = 'BA-hoqxE9h-uwjtZTgx1Q-cQcq-dl_Jgqv7pfWvYrlsUaxO9DcHksjve3zIiUL9ZXr-dH1nNthcVMbqPXImE4vM';
-
-    const subscribeBtn = document.getElementById('subscribeBtn');
-    const testBtn = document.getElementById('testBtn');
-    const statusEl = document.getElementById('status');
-
-    // 注册 Service Worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('SW 注册成功:', reg))
-        .catch(err => console.log('SW 注册失败:', err));
-    }
-
-    // 订阅推送
-    subscribeBtn.addEventListener('click', async () => {
-      alert('按钮点到了！开始流程...');
+    async function testPush() {
       try {
-        alert('第1步：等待Service Worker...');
-        const registration = await navigator.serviceWorker.ready;
-        alert('第2步：请求通知权限...');
-
-        // 请求通知权限
-        const permission = await Notification.requestPermission();
-        alert('权限结果: ' + permission);
-
-        if (permission !== 'granted') {
-          alert('❌ 通知权限被拒绝了！请去浏览器设置里打开通知权限');
-          return;
+        const res = await fetch('/api/test-push', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ 测试消息已发送！看看你的微信~');
+        } else {
+          alert('❌ 发送失败：' + (data.error || '未知错误'));
         }
-
-        alert('第3步：订阅推送...');
-        // 订阅
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-
-        alert('第4步：发送给后端...');
-        // 发给后端
-        await fetch('/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(subscription)
-        });
-
-        statusEl.textContent = '✅ 推送已开启！ta可以找你啦';
-        statusEl.classList.add('on');
-        subscribeBtn.textContent = '已开启 ✓';
-        alert('✅ 全部成功！');
       } catch (err) {
-        console.error('订阅失败:', err);
-        alert('❌ 出错了: ' + err.message + '\n\n' + err.stack);
+        alert('❌ 网络错误：' + err.message);
       }
-    });
-
-    // 测试推送
-    testBtn.addEventListener('click', async () => {
-      const res = await fetch('/test-push', { method: 'POST' });
-      const data = await res.json();
-      alert(data.success ? '测试推送已发送，看看通知栏！' : '发送失败');
-    });
-
-    // VAPID 公钥转格式
-    function urlBase64ToUint8Array(base64String) {
-      const padding = '='.repeat((4 - base64String.length % 4) % 4);
-      const base64 = (base64String + padding)
-        .replace(/-/g, '+')
-        .replace(/_/g, '/');
-      const rawData = atob(base64);
-      return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
     }
   </script>
 </body>
